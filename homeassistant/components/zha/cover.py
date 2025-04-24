@@ -7,6 +7,7 @@ import functools
 import logging
 from typing import Any
 
+from zha.const import PROPERTY_CHANGED
 from zha.application.platforms.cover import Shade as ZhaShade
 from zha.application.platforms.cover.const import (
     CoverEntityFeature as ZHACoverEntityFeature,
@@ -61,34 +62,8 @@ class ZhaCover(ZHAEntity, CoverEntity):
 
     def __init__(self, entity_data: EntityData) -> None:
         """Initialize the ZHA cover."""
+        self._update_entity_properties()
         super().__init__(entity_data)
-
-        if self.entity_data.entity.info_object.device_class is not None:
-            self._attr_device_class = CoverDeviceClass(
-                self.entity_data.entity.info_object.device_class
-            )
-
-        features = CoverEntityFeature(0)
-        zha_features: ZHACoverEntityFeature = self.entity_data.entity.supported_features
-
-        if ZHACoverEntityFeature.OPEN in zha_features:
-            features |= CoverEntityFeature.OPEN
-        if ZHACoverEntityFeature.CLOSE in zha_features:
-            features |= CoverEntityFeature.CLOSE
-        if ZHACoverEntityFeature.SET_POSITION in zha_features:
-            features |= CoverEntityFeature.SET_POSITION
-        if ZHACoverEntityFeature.STOP in zha_features:
-            features |= CoverEntityFeature.STOP
-        if ZHACoverEntityFeature.OPEN_TILT in zha_features:
-            features |= CoverEntityFeature.OPEN_TILT
-        if ZHACoverEntityFeature.CLOSE_TILT in zha_features:
-            features |= CoverEntityFeature.CLOSE_TILT
-        if ZHACoverEntityFeature.STOP_TILT in zha_features:
-            features |= CoverEntityFeature.STOP_TILT
-        if ZHACoverEntityFeature.SET_TILT_POSITION in zha_features:
-            features |= CoverEntityFeature.SET_TILT_POSITION
-
-        self._attr_supported_features = features
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -123,6 +98,43 @@ class ZhaCover(ZHAEntity, CoverEntity):
     def current_cover_tilt_position(self) -> int | None:
         """Return the current tilt position of the cover."""
         return self.entity_data.entity.current_cover_tilt_position
+
+    def _update_entity_properties(self) -> None:
+        """Update the entity device_class and supported_features properties."""
+        self._attr_device_class: CoverDeviceClass | None = (
+            CoverDeviceClass(self.entity_data.entity.info_object.device_class)
+            if self.entity_data.entity.info_object.device_class is not None
+            else None
+        )
+
+        features = CoverEntityFeature(0)
+        zha_features: ZHACoverEntityFeature = self.entity_data.entity.supported_features
+
+        if ZHACoverEntityFeature.OPEN in zha_features:
+            features |= CoverEntityFeature.OPEN
+        if ZHACoverEntityFeature.CLOSE in zha_features:
+            features |= CoverEntityFeature.CLOSE
+        if ZHACoverEntityFeature.SET_POSITION in zha_features:
+            features |= CoverEntityFeature.SET_POSITION
+        if ZHACoverEntityFeature.STOP in zha_features:
+            features |= CoverEntityFeature.STOP
+        if ZHACoverEntityFeature.OPEN_TILT in zha_features:
+            features |= CoverEntityFeature.OPEN_TILT
+        if ZHACoverEntityFeature.CLOSE_TILT in zha_features:
+            features |= CoverEntityFeature.CLOSE_TILT
+        if ZHACoverEntityFeature.STOP_TILT in zha_features:
+            features |= CoverEntityFeature.STOP_TILT
+        if ZHACoverEntityFeature.SET_TILT_POSITION in zha_features:
+            features |= CoverEntityFeature.SET_TILT_POSITION
+
+        self._attr_supported_features = features
+
+    @callback
+    def _handle_entity_events(self, event: Any) -> None:
+        """Entity properties changed."""
+        if event.event == PROPERTY_CHANGED:
+            self._update_entity_properties()
+        super()._handle_entity_events(event)
 
     @convert_zha_error_to_ha_error
     async def async_open_cover(self, **kwargs: Any) -> None:
